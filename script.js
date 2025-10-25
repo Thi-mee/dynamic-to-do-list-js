@@ -1,4 +1,29 @@
+const state = new Proxy(
+  { tasks: [] },
+  {
+    set: (state, property, newValue) => {
+      if (property === "tasks") {
+        state[property] = newValue[0];
+        const shouldSync = newValue[1];
+        if (shouldSync) {
+          localStorage.setItem("tasks", JSON.stringify(newValue[0]));
+        }
+        console.log("Tasks set");
+        console.log(state);
+      }
+    },
+  }
+);
+
 document.addEventListener("DOMContentLoaded", (e) => {
+  function loadTasks() {
+    /** @type {string[]} */
+    const storedTasks = JSON.parse(localStorage.getItem("tasks") || "[]");
+    for (const task of storedTasks) {
+      addTask(task, false);
+    }
+  }
+
   /** @type {HTMLButtonElement} */
   const addButton = document.getElementById("add-task-btn");
 
@@ -8,9 +33,7 @@ document.addEventListener("DOMContentLoaded", (e) => {
   /** @type {HTMLUListElement} */
   const taskList = document.getElementById("task-list");
 
-  function addTask() {
-    const taskText = taskInput.value.trim();
-
+  function addTask(taskText, toSync = true) {
     if (!taskText) return alert("Enter a task");
 
     const newListItem = document.createElement("li");
@@ -21,17 +44,23 @@ document.addEventListener("DOMContentLoaded", (e) => {
     newButton.textContent = "Remove";
     newButton.addEventListener("click", () => {
       newListItem.remove();
+      state.tasks = [state.tasks.filter((t) => t !== taskText), toSync];
     });
 
     newListItem.appendChild(newButton);
     taskList.appendChild(newListItem);
     taskInput.value = "";
+
+    state.tasks = [[...state.tasks, taskText], toSync];
   }
 
-  addButton.addEventListener("click", addTask);
+  addButton.addEventListener("click", (e) => {
+    addTask(taskInput.value.trim());
+  });
   taskInput.addEventListener("keypress", (event) => {
     if (event.key === "Enter") {
-      addTask();
+      addTask(taskInput.value.trim());
     }
   });
+  loadTasks();
 });
